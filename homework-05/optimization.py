@@ -164,6 +164,8 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Newton method started, initial grad_norm = {grad_norm_0:.6e}")
+            print(f"Gradient descent started, initial grad_norm = {grad_norm_0:.6e}")
             print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
     
     if trace:
@@ -238,6 +240,8 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Newton method started, initial grad_norm = {grad_norm_0:.6e}")
+            print(f"Gradient descent started, initial grad_norm = {grad_norm_0:.6e}")
             print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
     
     if trace:
