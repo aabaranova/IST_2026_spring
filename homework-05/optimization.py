@@ -12,28 +12,8 @@ class LineSearchTool(object):
             self.c1 = kwargs.get('c1', 1e-4)
             self.c2 = kwargs.get('c2', 0.9)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
-        elif self._method == 'Armijo':
-            self.c1 = kwargs.get('c1', 1e-4)
-            self.alpha_0 = kwargs.get('alpha_0', 1.0)
-        elif self._method == 'Constant':
-            self.c = kwargs.get('c', 1.0)
-        else:
-            raise ValueError('Unknown method {}'.format(method))
-
-    @classmethod
-    def from_dict(cls, options):
-        if type(options) != dict:
-            raise TypeError('LineSearchTool initializer must be of type dict')
-        return cls(**options)
-
-    def to_dict(self):
-        return self.__dict__
-
-    def line_search(self, oracle, x_k, d_k, previous_alpha=None):
-        if self._method == 'Constant':
-            return self.c
-        
-        elif self._method == 'Armijo':
+                elif self._method == 'Armijo':
+            # Используем previous_alpha если есть, иначе alpha_0
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
@@ -42,15 +22,15 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            while True:
+            # Armijo backtracking - уменьшаем шаг до выполнения условия
+            for _ in range(100):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-        
-        elif self._method == 'Wolfe':
+            return 0.0elif self._method == 'Wolfe':
             # Простой Wolfe поиск
             if previous_alpha is not None:
                 alpha = previous_alpha
