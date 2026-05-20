@@ -13,25 +13,6 @@ class LineSearchTool(object):
             self.c2 = kwargs.get('c2', 0.9)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
         elif self._method == 'Armijo':
-            if previous_alpha is not None:
-                alpha = previous_alpha
-            else:
-                alpha = self.alpha_0
-            
-            phi_0 = oracle.func_directional(x_k, d_k, 0)
-            phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
-            
-            # Armijo backtracking
-            for _ in range(50):
-                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
-                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
-                    return alpha
-                alpha = alpha / 2.0
-                if alpha < 1e-16:
-                    return 0.0
-            return 0.0
-
-        elif self._method == 'Armijo':
             self.c1 = kwargs.get('c1', 1e-4)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
         elif self._method == 'Constant':
@@ -48,128 +29,63 @@ class LineSearchTool(object):
     def to_dict(self):
         return self.__dict__
 
-    def _cubic_interpolation(self, a, b, fa, fb, fpa, fpb):
-        """Cubic interpolation for Wolfe zoom"""
-        d1 = fpa + fpb - 3 * (fa - fb) / (a - b)
-        d2 = np.sqrt(d1**2 - fpa * fpb)
-        alpha = b - (b - a) * (fpb + d2 - d1) / (fpb - fpa + 2 * d2)
-        return alpha
-
     def line_search(self, oracle, x_k, d_k, previous_alpha=None):
         if self._method == 'Constant':
             return self.c
         
         elif self._method == 'Armijo':
             if previous_alpha is not None:
-                alpha = previous_alpha * 2.0
+                alpha = previous_alpha
             else:
                 alpha = self.alpha_0
             
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            while True:
+            for _ in range(50):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
+            return 0.0
         
         elif self._method == 'Wolfe':
-            c1, c2 = self.c1, self.c2
-            
-            phi = lambda a: oracle.func_directional(x_k, d_k, a)
-            phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
-            
-            phi_0 = phi(0)
-            phi_prime_0 = phi_prime(0)
-            
-            # Initial step size
-            if previous_alpha is not None and previous_alpha > 0:
+            if previous_alpha is not None:
                 alpha = previous_alpha
             else:
                 alpha = self.alpha_0
             
-            alpha_max = 100.0
-            alpha_prev = 0.0
-            phi_prev = phi_0
-            phi_prime_prev = phi_prime_0
+            phi_0 = oracle.func_directional(x_k, d_k, 0)
+            phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
+            # Простой Wolfe search с использованием Armijo и проверки кривизны
             for _ in range(100):
-                phi_alpha = phi(alpha)
+                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 
                 # Armijo condition
-                if phi_alpha > phi_0 + c1 * alpha * phi_prime_0:
-                    # Zoom
-                    for __ in range(50):
-                        # Cubic interpolation
-                        alpha_j = self._cubic_interpolation(alpha_prev, alpha, 
-                                                             phi_prev, phi_alpha,
-                                                             phi_prime_prev, phi_prime(alpha))
-                        alpha_j = max(alpha_j, alpha_prev + 0.01 * (alpha - alpha_prev))
-                        alpha_j = min(alpha_j, alpha - 0.01 * (alpha - alpha_prev))
-                        
-                        phi_j = phi(alpha_j)
-                        if phi_j > phi_0 + c1 * alpha_j * phi_prime_0:
-                            alpha = alpha_j
-                        else:
-                            phi_prime_j = phi_prime(alpha_j)
-                            if abs(phi_prime_j) <= -c2 * phi_prime_0:
-                                return alpha_j
-                            if phi_prime_j * (alpha - alpha_prev) >= 0:
-                                alpha = alpha_prev
-                            alpha_prev = alpha_j
-                            phi_prev = phi_j
-                            phi_prime_prev = phi_prime_j
-                            alpha = alpha_j
-                            break
-                    else:
+                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
+                    phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
+                    # Curvature condition
+                    if abs(phi_prime_alpha) <= -self.c2 * phi_prime_0:
                         return alpha
-                else:
-                    phi_prime_alpha = phi_prime(alpha)
-                    if abs(phi_prime_alpha) <= -c2 * phi_prime_0:
-                        return alpha
-                    if phi_prime_alpha >= 0:
-                        # Zoom
-                        for __ in range(50):
-                            alpha_j = self._cubic_interpolation(alpha, alpha_prev,
-                                                                 phi_alpha, phi_prev,
-                                                                 phi_prime_alpha, phi_prime_prev)
-                            alpha_j = max(alpha_j, alpha_prev + 0.01 * (alpha - alpha_prev))
-                            alpha_j = min(alpha_j, alpha - 0.01 * (alpha - alpha_prev))
-                            
-                            phi_j = phi(alpha_j)
-                            if phi_j > phi_0 + c1 * alpha_j * phi_prime_0:
-                                alpha = alpha_j
-                            else:
-                                phi_prime_j = phi_prime(alpha_j)
-                                if abs(phi_prime_j) <= -c2 * phi_prime_0:
-                                    return alpha_j
-                                if phi_prime_j * (alpha - alpha_prev) >= 0:
-                                    alpha = alpha_prev
-                                alpha_prev = alpha_j
-                                phi_prev = phi_j
-                                phi_prime_prev = phi_prime_j
-                                alpha = alpha_j
-                                break
-                        else:
-                            return alpha
-                    else:
-                        alpha_prev = alpha
-                        phi_prev = phi_alpha
-                        phi_prime_prev = phi_prime_alpha
-                        alpha = min(2.0 * alpha, alpha_max)
+                
+                # Если не удовлетворяет, уменьшаем шаг
+                alpha = alpha / 2.0
+                if alpha < 1e-16:
+                    return 0.0
             
-            # Fallback to Armijo
+            # Fallback
             alpha = self.alpha_0
-            while True:
-                phi_alpha = phi(alpha)
-                if phi_alpha <= phi_0 + c1 * alpha * phi_prime_0:
+            for _ in range(50):
+                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
+                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
+            return 0.0
         
         return None
 
@@ -190,12 +106,12 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     line_search_tool = get_line_search_tool(line_search_options)
     x_k = np.copy(x_0)
 
-    grad_norm = np.linalg.norm(oracle.grad(x_k))
+    grad = oracle.grad(x_k)
+    grad_norm = np.linalg.norm(grad)
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
         if trace:
-            start_time = datetime.now()
             history['time'].append(0.0)
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(0.0)
@@ -236,11 +152,9 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         
         if display:
-            print("Starting Newton method...")
-            print("Starting gradient descent...")
-            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
     
-    if trace and iteration > 0:
+    if trace:
         history['time'].append((datetime.now() - start_time).total_seconds())
         history['func'].append(oracle.func(x_k))
         history['grad_norm'].append(grad_norm)
@@ -256,12 +170,12 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     line_search_tool = get_line_search_tool(line_search_options)
     x_k = np.copy(x_0)
 
-    grad_norm = np.linalg.norm(oracle.grad(x_k))
+    grad = oracle.grad(x_k)
+    grad_norm = np.linalg.norm(grad)
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
         if trace:
-            start_time = datetime.now()
             history['time'].append(0.0)
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(0.0)
@@ -312,11 +226,9 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         
         if display:
-            print("Starting Newton method...")
-            print("Starting gradient descent...")
-            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
     
-    if trace and iteration > 0:
+    if trace:
         history['time'].append((datetime.now() - start_time).total_seconds())
         history['func'].append(oracle.func(x_k))
         history['grad_norm'].append(grad_norm)
