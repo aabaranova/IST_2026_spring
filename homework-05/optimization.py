@@ -167,7 +167,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['grad_norm'].append(grad_norm)
                 if x_k.size <= 2:
                     history['x'].append(x_k.copy())
-            return x_k, 'success', history
+            return x_k, 'iterations_exceeded', history
         
         grad = oracle.grad(x_k)
         d_k = -grad
@@ -220,7 +220,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['grad_norm'].append(grad_norm)
                 if x_k.size <= 2:
                     history['x'].append(x_k.copy())
-            return x_k, 'success', history
+            return x_k, 'iterations_exceeded', history
         
         grad = oracle.grad(x_k)
         hess = oracle.hess(x_k)

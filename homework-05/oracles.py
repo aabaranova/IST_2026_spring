@@ -84,6 +84,7 @@ class LogRegL2Oracle(BaseSmoothOracle):
         self.matmat_ATsA = matmat_ATsA
         self.b = b
         self.regcoef = regcoef
+        self.m = len(b)
 
     def func(self, x):
         # TODO: Implement
@@ -172,7 +173,7 @@ def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
 
     def matmat_ATsA(s):
         if scipy.sparse.issparse(A):
-            sA = s[:, np.newaxis] * A
+            sA = A.multiply(s[:, np.newaxis]) if scipy.sparse.issparse(A) else s[:, np.newaxis] * A
             return A.T.dot(sA)
         else:
             return A.T.dot(s[:, np.newaxis] * A)
