@@ -142,7 +142,25 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         
         x_k = x_k + alpha * d_k
         grad_norm = np.linalg.norm(oracle.grad(x_k))
+        
+        if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
+            return x_k, 'success', history
         previous_alpha = alpha
+        
+        if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
+            return x_k, 'success', history
         
         if trace:
             history['time'].append((datetime.now() - start_time).total_seconds())
@@ -224,6 +242,15 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         
         x_k = x_k + alpha * d_k
         grad_norm = np.linalg.norm(oracle.grad(x_k))
+        
+        if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
+            return x_k, 'success', history
         
         if trace:
             history['time'].append((datetime.now() - start_time).total_seconds())
