@@ -153,10 +153,11 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
             if x_k.size <= 2:
                 history['x'].append(x_k.copy())
         
-        if display:
-            if iteration == 0:
+        if display and iteration == 0:
                 print("Gradient descent started")
-            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+                print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+            if display and iteration > 0:
+                print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     return x_k, 'iterations_exceeded', history
 
@@ -223,9 +224,10 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
             if x_k.size <= 2:
                 history['x'].append(x_k.copy())
         
-        if display:
-            if iteration == 0:
+        if display and iteration == 0:
                 print("Newton method started")
-            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+                print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+            if display and iteration > 0:
+                print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     return x_k, 'iterations_exceeded', history
