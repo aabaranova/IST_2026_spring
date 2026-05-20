@@ -165,15 +165,12 @@ def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
     """
 
     def matvec_Ax(x):
-        # TODO: Implement
         return A.dot(x)
     
     def matvec_ATx(x):
-        # TODO: Implement
         return A.T.dot(x)
-      
+
     def matmat_ATsA(s):
-        # TODO: Implement
         if scipy.sparse.issparse(A):
             sA = s[:, np.newaxis] * A
             return A.T.dot(sA)
