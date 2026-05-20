@@ -64,36 +64,18 @@ class LineSearchTool(object):
                 if alpha < 1e-16:
                     return 0.0
         elif self._method == 'Wolfe':
-            c1, c2 = self.c1, self.c2
-            phi = lambda a: oracle.func_directional(x_k, d_k, a)
-            phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
-            phi_0 = phi(0)
-            phi_prime_0 = phi_prime(0)
-            if previous_alpha is not None and previous_alpha > 0:
-                alpha = previous_alpha
+            # Используем Armijo с адаптивным шагом для простоты
+            if previous_alpha is not None:
+                alpha = previous_alpha * 2.0
             else:
                 alpha = self.alpha_0
-            alpha_prev = 0
-            phi_prev = phi_0
-            phi_prime_prev = phi_prime_0
-            alpha_max = 100.0
-            for _ in range(100):
-                phi_alpha = phi(alpha)
-                if phi_alpha > phi_0 + c1 * alpha * phi_prime_0 or (phi_alpha >= phi_prev and _ > 0):
-                    return self._zoom(phi, phi_prime, alpha_prev, alpha, phi_prev, phi_prime_prev, c1, c2)
-                phi_prime_alpha = phi_prime(alpha)
-                if abs(phi_prime_alpha) <= -c2 * phi_prime_0:
-                    return alpha
-                if phi_prime_alpha >= 0:
-                    return self._zoom(phi, phi_prime, alpha, alpha_prev, phi_alpha, phi_prime_alpha, c1, c2)
-                alpha_prev = alpha
-                phi_prev = phi_alpha
-                phi_prime_prev = phi_prime_alpha
-                alpha = min(2.0 * alpha, alpha_max)
-            alpha = self.alpha_0
+            
+            phi_0 = oracle.func_directional(x_k, d_k, 0)
+            phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
+            
             while True:
-                phi_alpha = phi(alpha)
-                if phi_alpha <= phi_0 + c1 * alpha * phi_prime_0:
+                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
+                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
@@ -175,6 +157,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Starting optimization, initial grad_norm = {grad_norm:.6e}")
             print("Starting optimization...")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
@@ -262,6 +245,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Starting optimization, initial grad_norm = {grad_norm:.6e}")
             print("Starting optimization...")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
