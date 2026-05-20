@@ -154,3 +154,54 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         grad_loss_dot_d = np.dot(self.matvec_ATx(tmp), d)
         grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
         return grad_loss_dot_d + grad_reg_dot_d
+
+def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
+    def matvec_Ax(x):
+        return A.dot(x)
+    
+    def matvec_ATx(x):
+        return A.T.dot(x)
+
+    def matmat_ATsA(s):
+        if scipy.sparse.issparse(A):
+            sA = A.multiply(s[:, np.newaxis])
+            return A.T.dot(sA)
+        else:
+            return A.T.dot(s[:, np.newaxis] * A)
+
+    if oracle_type == 'usual':
+        return LogRegL2Oracle(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
+    elif oracle_type == 'optimized':
+        return LogRegL2OptimizedOracle(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
+    else:
+        raise ValueError('Unknown oracle_type=%s' % oracle_type)
+
+
+def grad_finite_diff(func, x, eps=1e-8):
+    n = len(x)
+    grad = np.zeros(n)
+    f0 = func(x)
+    for i in range(n):
+        e_i = np.zeros(n)
+        e_i[i] = eps
+        f_plus = func(x + e_i)
+        grad[i] = (f_plus - f0) / eps
+    return grad
+
+
+def hess_finite_diff(func, x, eps=1e-5):
+    n = len(x)
+    hess = np.zeros((n, n))
+    f0 = func(x)
+    for i in range(n):
+        e_i = np.zeros(n)
+        e_i[i] = eps
+        f_i = func(x + e_i)
+        for j in range(i, n):
+            e_j = np.zeros(n)
+            e_j[j] = eps
+            f_j = func(x + e_j)
+            f_ij = func(x + e_i + e_j)
+            hess[i, j] = (f_ij - f_i - f_j + f0) / (eps ** 2)
+            hess[j, i] = hess[i, j]
+    return hess
