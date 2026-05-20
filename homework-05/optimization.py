@@ -42,16 +42,16 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            for _ in range(50):
+            while True:
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-            return 0.0
         
         elif self._method == 'Wolfe':
+            # Простой Wolfe поиск
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
@@ -60,35 +60,29 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            # Сначала пробуем увеличить шаг для квадратичной функции
-            for _ in range(20):
+            # Ищем подходящий шаг
+            for _ in range(100):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
                 
                 # Проверяем Wolfe условия
-                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
-                    if abs(phi_prime_alpha) <= -self.c2 * phi_prime_0:
-                        return alpha
+                armijo_ok = phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0
+                curvature_ok = abs(phi_prime_alpha) <= -self.c2 * phi_prime_0
                 
-                # Увеличиваем шаг если нужно
-                if phi_prime_alpha < 0 and alpha < 100:
-                    alpha = min(alpha * 2.0, 100.0)
+                if armijo_ok and curvature_ok:
+                    return alpha
+                
+                # Если не хватает кривизны, увеличиваем шаг
+                if armijo_ok and not curvature_ok and phi_prime_alpha < 0:
+                    alpha = alpha * 2.0
                 else:
-                    break
-            
-            # Если не нашли, пробуем Armijo с уменьшением
-            alpha = self.alpha_0
-            for _ in range(50):
-                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
-                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
-                    phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
-                    if abs(phi_prime_alpha) <= -self.c2 * phi_prime_0:
-                        return alpha
-                alpha = alpha / 2.0
+                    # Иначе уменьшаем шаг
+                    alpha = alpha / 2.0
+                
                 if alpha < 1e-16:
                     return 0.0
             
-            # Самый простой fallback - Armijo
+            # Fallback
             alpha = self.alpha_0
             for _ in range(50):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
@@ -118,8 +112,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     line_search_tool = get_line_search_tool(line_search_options)
     x_k = np.copy(x_0)
 
-    grad = oracle.grad(x_k)
-    grad_norm = np.linalg.norm(grad)
+    grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
@@ -164,9 +157,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         
         if display:
-            print(f"Newton method started, initial grad_norm = {grad_norm_0:.6e}")
-            print(f"Gradient descent started, initial grad_norm = {grad_norm_0:.6e}")
-            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
+            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     if trace:
         history['time'].append((datetime.now() - start_time).total_seconds())
@@ -184,8 +175,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     line_search_tool = get_line_search_tool(line_search_options)
     x_k = np.copy(x_0)
 
-    grad = oracle.grad(x_k)
-    grad_norm = np.linalg.norm(grad)
+    grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
@@ -240,9 +230,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         
         if display:
-            print(f"Newton method started, initial grad_norm = {grad_norm_0:.6e}")
-            print(f"Gradient descent started, initial grad_norm = {grad_norm_0:.6e}")
-            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
+            print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     if trace:
         history['time'].append((datetime.now() - start_time).total_seconds())
