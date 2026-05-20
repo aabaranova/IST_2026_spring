@@ -161,7 +161,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace:
+            if trace and iteration > 0:
                 history['time'].append((datetime.now() - start_time).total_seconds())
                 history['func'].append(oracle.func(x_k))
                 history['grad_norm'].append(grad_norm)
@@ -181,7 +181,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         grad_norm = np.linalg.norm(oracle.grad(x_k))
         previous_alpha = alpha
         
-        if trace:
+        if trace and iteration > 0:
             history['time'].append((datetime.now() - start_time).total_seconds())
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(grad_norm)
@@ -191,7 +191,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         if display:
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
-    if trace:
+    if trace and iteration > 0:
         history['time'].append((datetime.now() - start_time).total_seconds())
         history['func'].append(oracle.func(x_k))
         history['grad_norm'].append(grad_norm)
@@ -214,7 +214,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace:
+            if trace and iteration > 0:
                 history['time'].append((datetime.now() - start_time).total_seconds())
                 history['func'].append(oracle.func(x_k))
                 history['grad_norm'].append(grad_norm)
@@ -245,7 +245,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         x_k = x_k + alpha * d_k
         grad_norm = np.linalg.norm(oracle.grad(x_k))
         
-        if trace:
+        if trace and iteration > 0:
             history['time'].append((datetime.now() - start_time).total_seconds())
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(grad_norm)
@@ -255,7 +255,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         if display:
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
-    if trace:
+    if trace and iteration > 0:
         history['time'].append((datetime.now() - start_time).total_seconds())
         history['func'].append(oracle.func(x_k))
         history['grad_norm'].append(grad_norm)
