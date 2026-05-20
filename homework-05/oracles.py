@@ -13,12 +13,34 @@ class BaseSmoothOracle(object):
     def hess(self, x):
         raise NotImplementedError('Hessian oracle is not implemented.')
     
+    
     def func_directional(self, x, d, alpha):
-        return np.squeeze(self.func(x + alpha * d))
+        Ax = self._get_Ax(x)
+        Ad = self._get_Ad(d)
+        Ax_alpha = Ax + alpha * Ad
+        x_alpha = x + alpha * d
+        # Кэшируем x_alpha для будущих вызовов
+        self._cached_x = x_alpha.copy()
+        self._cached_Ax = Ax_alpha
+        z = self.b * Ax_alpha
+        log_loss = np.mean(np.logaddexp(0, -z))
+        reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
+        return log_loss + reg
 
-    def grad_directional(self, x, d, alpha):
-        return np.squeeze(self.grad(x + alpha * d).dot(d))
-
+    (self, x, d, alpha):
+        Ax = self._get_Ax(x)
+        Ad = self._get_Ad(d)
+        Ax_alpha = Ax + alpha * Ad
+        x_alpha = x + alpha * d
+        # Кэшируем x_alpha для будущих вызовов
+        self._cached_x = x_alpha.copy()
+        self._cached_Ax = Ax_alpha
+        z = self.b * Ax_alpha
+        sigma = expit(-z)
+        tmp = -self.b * sigma / self.m
+        grad_loss_dot_d = np.dot(self.matvec_ATx(tmp), d)
+        grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
+        return grad_loss_dot_d + grad_reg_dot_d
 
 class QuadraticOracle(BaseSmoothOracle):
     def __init__(self, A, b):
@@ -136,21 +158,28 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         hess_reg = self.regcoef * np.eye(n)
         return hess_loss + hess_reg
 
+    
     def func_directional(self, x, d, alpha):
         Ax = self._get_Ax(x)
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
+        # Кэшируем x_alpha для будущих вызовов
+        self._cached_x = x_alpha.copy()
+        self._cached_Ax = Ax_alpha
         z = self.b * Ax_alpha
         log_loss = np.mean(np.logaddexp(0, -z))
         reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
         return log_loss + reg
 
-    def grad_directional(self, x, d, alpha):
+    (self, x, d, alpha):
         Ax = self._get_Ax(x)
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
+        # Кэшируем x_alpha для будущих вызовов
+        self._cached_x = x_alpha.copy()
+        self._cached_Ax = Ax_alpha
         z = self.b * Ax_alpha
         sigma = expit(-z)
         tmp = -self.b * sigma / self.m
@@ -158,8 +187,6 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
         return grad_loss_dot_d + grad_reg_dot_d
 
-
-def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
     def matvec_Ax(x):
         return A.dot(x)
     
