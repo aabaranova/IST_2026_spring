@@ -1,22 +1,6 @@
-# import nose  # Commented for Python 3.12 compatibility
-# from nose.tools import assert_almost_equal, ok_, eq_
-# from nose.plugins.attrib import attr
-
-# Compatibility replacements for nose
-def assert_almost_equal(a, b, places=7, msg=None):
-    assert abs(a - b) < 10**(-places), msg or f"{a} != {b} within {places} places"
-
-def ok_(expr, msg=None):
-    assert expr, msg or "Assertion failed"
-
-def eq_(a, b, msg=None):
-    assert a == b, msg or f"{a} != {b}"
-
-def attr(*args, **kwargs):
-    def decorator(func):
-        return func
-    return decorator
-
+import nose
+from nose.tools import assert_almost_equal, ok_, eq_
+from nose.plugins.attrib import attr
 from io import StringIO
 import numpy as np
 import scipy
@@ -596,3 +580,4 @@ def test_newton_fail():
     warnings.filterwarnings("default")
     eq_(msg, 'computational_error')
     eq_(history, None)
+

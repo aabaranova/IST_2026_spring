@@ -3,7 +3,7 @@ from numpy.linalg import LinAlgError
 import scipy
 from datetime import datetime
 from collections import defaultdict
-from scipy.optimize.linesearch import scalar_search_wolfe2
+from scipy.optimize.linesearch import line_search_wolfe2 as scalar_search_wolfe2
 
 
 class LineSearchTool(object):
