@@ -119,6 +119,13 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         return x_k, 'success', history
     
+    if trace:
+        history['time'].append(0.0)
+        history['func'].append(oracle.func(x_k))
+        history['grad_norm'].append(grad_norm)
+        if x_k.size <= 2:
+            history['x'].append(x_k.copy())
+    
     start_time = datetime.now()
     previous_alpha = None
     
@@ -183,6 +190,13 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
             if x_k.size <= 2:
                 history['x'].append(x_k.copy())
         return x_k, 'success', history
+    
+    if trace:
+        history['time'].append(0.0)
+        history['func'].append(oracle.func(x_k))
+        history['grad_norm'].append(grad_norm)
+        if x_k.size <= 2:
+            history['x'].append(x_k.copy())
     
     start_time = datetime.now()
     
