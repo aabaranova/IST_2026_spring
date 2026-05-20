@@ -60,23 +60,35 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            # Простой Wolfe search с использованием Armijo и проверки кривизны
-            for _ in range(100):
+            # Сначала пробуем увеличить шаг для квадратичной функции
+            for _ in range(20):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
+                phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
                 
-                # Armijo condition
+                # Проверяем Wolfe условия
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
-                    phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
-                    # Curvature condition
                     if abs(phi_prime_alpha) <= -self.c2 * phi_prime_0:
                         return alpha
                 
-                # Если не удовлетворяет, уменьшаем шаг
+                # Увеличиваем шаг если нужно
+                if phi_prime_alpha < 0 and alpha < 100:
+                    alpha = min(alpha * 2.0, 100.0)
+                else:
+                    break
+            
+            # Если не нашли, пробуем Armijo с уменьшением
+            alpha = self.alpha_0
+            for _ in range(50):
+                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
+                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
+                    phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
+                    if abs(phi_prime_alpha) <= -self.c2 * phi_prime_0:
+                        return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
             
-            # Fallback
+            # Самый простой fallback - Armijo
             alpha = self.alpha_0
             for _ in range(50):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
