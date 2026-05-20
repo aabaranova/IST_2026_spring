@@ -12,8 +12,28 @@ class LineSearchTool(object):
             self.c1 = kwargs.get('c1', 1e-4)
             self.c2 = kwargs.get('c2', 0.9)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
-                elif self._method == 'Armijo':
-            # Используем previous_alpha если есть, иначе alpha_0
+        elif self._method == 'Armijo':
+            self.c1 = kwargs.get('c1', 1e-4)
+            self.alpha_0 = kwargs.get('alpha_0', 1.0)
+        elif self._method == 'Constant':
+            self.c = kwargs.get('c', 1.0)
+        else:
+            raise ValueError('Unknown method {}'.format(method))
+
+    @classmethod
+    def from_dict(cls, options):
+        if type(options) != dict:
+            raise TypeError('LineSearchTool initializer must be of type dict')
+        return cls(**options)
+
+    def to_dict(self):
+        return self.__dict__
+
+    def line_search(self, oracle, x_k, d_k, previous_alpha=None):
+        if self._method == 'Constant':
+            return self.c
+        
+        elif self._method == 'Armijo':
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
@@ -22,7 +42,6 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            # Armijo backtracking - уменьшаем шаг до выполнения условия
             for _ in range(100):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
@@ -30,8 +49,9 @@ class LineSearchTool(object):
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-            return 0.0elif self._method == 'Wolfe':
-            # Простой Wolfe поиск
+            return 0.0
+        
+        elif self._method == 'Wolfe':
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
@@ -40,31 +60,26 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            # Ищем подходящий шаг
             for _ in range(100):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
                 
-                # Проверяем Wolfe условия
                 armijo_ok = phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0
                 curvature_ok = abs(phi_prime_alpha) <= -self.c2 * phi_prime_0
                 
                 if armijo_ok and curvature_ok:
                     return alpha
                 
-                # Если не хватает кривизны, увеличиваем шаг
                 if armijo_ok and not curvature_ok and phi_prime_alpha < 0:
                     alpha = alpha * 2.0
                 else:
-                    # Иначе уменьшаем шаг
                     alpha = alpha / 2.0
                 
                 if alpha < 1e-16:
                     return 0.0
             
-            # Fallback
             alpha = self.alpha_0
-            for _ in range(50):
+            for _ in range(100):
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
@@ -138,7 +153,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         
         if display:
             if iteration == 0:
-                print(f"Gradient descent started")
+                print("Gradient descent started")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     if trace:
@@ -213,7 +228,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         
         if display:
             if iteration == 0:
-                print(f"Gradient descent started")
+                print("Newton method started")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
     if trace:
