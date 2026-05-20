@@ -154,7 +154,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         if display:
             if iteration == 0:
                 print("Gradient descent started")
-                print(f"Initial f(x) = {oracle.func(oracle.grad(x_k)?)}")
+                print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
         
         # Проверка критерия останова ПОСЛЕ обновления
