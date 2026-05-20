@@ -13,34 +13,12 @@ class BaseSmoothOracle(object):
     def hess(self, x):
         raise NotImplementedError('Hessian oracle is not implemented.')
     
-    
     def func_directional(self, x, d, alpha):
-        Ax = self._get_Ax(x)
-        Ad = self._get_Ad(d)
-        Ax_alpha = Ax + alpha * Ad
-        x_alpha = x + alpha * d
-        # Кэшируем x_alpha для будущих вызовов
-        self._cached_x = x_alpha.copy()
-        self._cached_Ax = Ax_alpha
-        z = self.b * Ax_alpha
-        log_loss = np.mean(np.logaddexp(0, -z))
-        reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
-        return log_loss + reg
+        return np.squeeze(self.func(x + alpha * d))
 
     def grad_directional(self, x, d, alpha):
-        Ax = self._get_Ax(x)
-        Ad = self._get_Ad(d)
-        Ax_alpha = Ax + alpha * Ad
-        x_alpha = x + alpha * d
-        # Кэшируем x_alpha для будущих вызовов
-        self._cached_x = x_alpha.copy()
-        self._cached_Ax = Ax_alpha
-        z = self.b * Ax_alpha
-        sigma = expit(-z)
-        tmp = -self.b * sigma / self.m
-        grad_loss_dot_d = np.dot(self.matvec_ATx(tmp), d)
-        grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
-        return grad_loss_dot_d + grad_reg_dot_d
+        return np.squeeze(self.grad(x + alpha * d).dot(d))
+
 
 class QuadraticOracle(BaseSmoothOracle):
     def __init__(self, A, b):
@@ -67,7 +45,6 @@ class LogRegL2Oracle(BaseSmoothOracle):
         self.b = b
         self.regcoef = regcoef
         self.m = len(b)
-        self.m = len(b)
 
     def func(self, x):
         Ax = self.matvec_Ax(x)
@@ -93,93 +70,31 @@ class LogRegL2Oracle(BaseSmoothOracle):
         s = sigma_z * sigma_neg_z / self.m
         hess_loss = self.matmat_ATsA(s)
         n = len(x)
-        # Конвертируем в плотную матрицу для совместимости
         if scipy.sparse.issparse(hess_loss):
             hess_loss = hess_loss.toarray()
         hess_reg = self.regcoef * np.eye(n)
         return hess_loss + hess_reg
-
 
 
 class LogRegL2OptimizedOracle(LogRegL2Oracle):
-    """
-    Oracle for logistic regression with l2 regularization
-    with optimized *_directional methods (are used in line_search).
-    """
     def __init__(self, matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef):
         super().__init__(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
-        self._cached_x = None
-        self._cached_Ax = None
-        self._cached_d = None
-        self._cached_Ad = None
 
-    def _get_Ax(self, x):
-        """Кэшированное вычисление Ax"""
-        if self._cached_x is not None and np.allclose(self._cached_x, x):
-            return self._cached_Ax
-        self._cached_x = x.copy()
-        self._cached_Ax = self.matvec_Ax(x)
-        return self._cached_Ax
-
-    def _get_Ad(self, d):
-        """Кэшированное вычисление Ad"""
-        if self._cached_d is not None and np.allclose(self._cached_d, d):
-            return self._cached_Ad
-        self._cached_d = d.copy()
-        self._cached_Ad = self.matvec_Ax(d)
-        return self._cached_Ad
-
-    def func(self, x):
-        Ax = self._get_Ax(x)
-        z = self.b * Ax
-        log_loss = np.mean(np.logaddexp(0, -z))
-        reg = 0.5 * self.regcoef * np.dot(x, x)
-        return log_loss + reg
-
-    def grad(self, x):
-        Ax = self._get_Ax(x)
-        z = self.b * Ax
-        sigma = expit(-z)
-        tmp = -self.b * sigma / self.m
-        grad_loss = self.matvec_ATx(tmp)
-        grad_reg = self.regcoef * x
-        return grad_loss + grad_reg
-
-    def hess(self, x):
-        Ax = self._get_Ax(x)
-        z = self.b * Ax
-        sigma_z = expit(z)
-        sigma_neg_z = expit(-z)
-        s = sigma_z * sigma_neg_z / self.m
-        hess_loss = self.matmat_ATsA(s)
-        n = len(x)
-        if scipy.sparse.issparse(hess_loss):
-            hess_loss = hess_loss.toarray()
-        hess_reg = self.regcoef * np.eye(n)
-        return hess_loss + hess_reg
-
-    
     def func_directional(self, x, d, alpha):
-        Ax = self._get_Ax(x)
-        Ad = self._get_Ad(d)
+        Ax = self.matvec_Ax(x)
+        Ad = self.matvec_Ax(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
-        # Кэшируем x_alpha для будущих вызовов
-        self._cached_x = x_alpha.copy()
-        self._cached_Ax = Ax_alpha
         z = self.b * Ax_alpha
         log_loss = np.mean(np.logaddexp(0, -z))
         reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
         return log_loss + reg
 
     def grad_directional(self, x, d, alpha):
-        Ax = self._get_Ax(x)
-        Ad = self._get_Ad(d)
+        Ax = self.matvec_Ax(x)
+        Ad = self.matvec_Ax(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
-        # Кэшируем x_alpha для будущих вызовов
-        self._cached_x = x_alpha.copy()
-        self._cached_Ax = Ax_alpha
         z = self.b * Ax_alpha
         sigma = expit(-z)
         tmp = -self.b * sigma / self.m
@@ -187,6 +102,8 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
         return grad_loss_dot_d + grad_reg_dot_d
 
+
+def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
     def matvec_Ax(x):
         return A.dot(x)
     
