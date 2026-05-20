@@ -205,7 +205,6 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     previous_alpha = None
     
     for iteration in range(max_iter):
-        # Check stopping criterion
         if grad_norm**2 <= tolerance * grad_norm_0**2:
             if trace:
                 history['time'].append((datetime.now() - start_time).total_seconds())
@@ -215,26 +214,18 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                     history['x'].append(x_k.copy())
             return x_k, 'success', history
         
-        # Compute gradient
         grad = oracle.grad(x_k)
-        
-        # Search direction (negative gradient)
         d_k = -grad
         
-        # Line search
         alpha = line_search_tool.line_search(oracle, x_k, d_k, previous_alpha)
         
         if alpha is None or np.isnan(alpha) or np.isinf(alpha):
             return x_k, 'computational_error', history
         
-        # Update point
         x_k = x_k + alpha * d_k
-        
-        # Update gradient norm for next iteration
         grad_norm = np.linalg.norm(oracle.grad(x_k))
         previous_alpha = alpha
         
-        # Record history
         if trace:
             history['time'].append((datetime.now() - start_time).total_seconds())
             history['func'].append(oracle.func(x_k))
@@ -245,13 +236,13 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         if display:
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
     
-    # Max iterations exceeded
     if trace:
         history['time'].append((datetime.now() - start_time).total_seconds())
         history['func'].append(oracle.func(x_k))
         history['grad_norm'].append(grad_norm)
         if x_k.size <= 2:
             history['x'].append(x_k.copy())
+    
     return x_k, 'iterations_exceeded', history
 
 
