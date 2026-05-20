@@ -3,10 +3,12 @@ from numpy.linalg import LinAlgError
 import scipy
 from datetime import datetime
 from collections import defaultdict
-from scipy.optimize import line_search_wolfe2
 
 
 class LineSearchTool(object):
+    """
+    Line search tool for adaptively tuning the step size of the algorithm.
+    """
     def __init__(self, method='Wolfe', **kwargs):
         self._method = method
         if self._method == 'Wolfe':
@@ -30,7 +32,30 @@ class LineSearchTool(object):
     def to_dict(self):
         return self.__dict__
 
+    def _zoom(self, phi, phi_prime, alpha_lo, alpha_hi, phi_lo, phi_prime_lo, c1, c2):
+        """Zoom function for Wolfe conditions"""
+        for _ in range(50):
+            alpha_j = (alpha_lo + alpha_hi) / 2.0
+            phi_j = phi(alpha_j)
+            
+            if phi_j > phi_lo + c1 * alpha_j * phi_prime_lo or phi_j >= phi_lo:
+                alpha_hi = alpha_j
+            else:
+                phi_prime_j = phi_prime(alpha_j)
+                if abs(phi_prime_j) <= -c2 * phi_prime_lo:
+                    return alpha_j
+                if phi_prime_j * (alpha_hi - alpha_lo) >= 0:
+                    alpha_hi = alpha_lo
+                alpha_lo = alpha_j
+                phi_lo = phi_j
+                phi_prime_lo = phi_prime_j
+        return alpha_lo
+
     def line_search(self, oracle, x_k, d_k, previous_alpha=None):
+        """
+        Finds the step size alpha for a given starting point x_k
+        and for a given search direction d_k.
+        """
         if self._method == 'Constant':
             return self.c
         
@@ -52,33 +77,63 @@ class LineSearchTool(object):
                     return 0.0
         
         elif self._method == 'Wolfe':
+            c1 = self.c1
+            c2 = self.c2
+            
+            # Define functions
             phi = lambda a: oracle.func_directional(x_k, d_k, a)
             phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
-            
-            try:
-                result = line_search_wolfe2(phi, phi_prime, phi(0), phi_prime(0), 
-                                             c1=self.c1, c2=self.c2)
-                alpha = result[0]
-                if alpha is not None:
-                    return alpha
-            except:
-                pass
-            
-            if previous_alpha is not None:
-                alpha = previous_alpha
-            else:
-                alpha = self.alpha_0
             
             phi_0 = phi(0)
             phi_prime_0 = phi_prime(0)
             
+            # Initial step size
+            if previous_alpha is not None and previous_alpha > 0:
+                alpha = previous_alpha
+            else:
+                alpha = self.alpha_0
+            
+            # First, find an interval with sufficient decrease and curvature
+            alpha_prev = 0
+            phi_prev = phi_0
+            phi_prime_prev = phi_prime_0
+            alpha_max = 100.0
+            
+            for _ in range(100):
+                phi_alpha = phi(alpha)
+                
+                # Check Armijo condition
+                if phi_alpha > phi_0 + c1 * alpha * phi_prime_0 or (phi_alpha >= phi_prev and _ > 0):
+                    # Zoom in
+                    return self._zoom(phi, phi_prime, alpha_prev, alpha, 
+                                     phi_prev, phi_prime_prev, c1, c2)
+                
+                phi_prime_alpha = phi_prime(alpha)
+                
+                # Check curvature condition
+                if abs(phi_prime_alpha) <= -c2 * phi_prime_0:
+                    return alpha
+                
+                if phi_prime_alpha >= 0:
+                    return self._zoom(phi, phi_prime, alpha, alpha_prev,
+                                     phi_alpha, phi_prime_alpha, c1, c2)
+                
+                # Update for next iteration
+                alpha_prev = alpha
+                phi_prev = phi_alpha
+                phi_prime_prev = phi_prime_alpha
+                alpha = min(2.0 * alpha, alpha_max)
+            
+            # Fallback to Armijo
+            alpha = self.alpha_0
             while True:
                 phi_alpha = phi(alpha)
-                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
+                if phi_alpha <= phi_0 + c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
+        
         return None
 
 
@@ -206,4 +261,5 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         history['grad_norm'].append(grad_norm)
         if x_k.size <= 2:
             history['x'].append(x_k.copy())
+    
     return x_k, 'iterations_exceeded', history
