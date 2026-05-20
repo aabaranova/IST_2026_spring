@@ -4,6 +4,17 @@ import scipy
 from datetime import datetime
 from collections import defaultdict
 
+# Попробуем импортировать line_search из scipy
+try:
+    from scipy.optimize import line_search_wolfe2
+    USE_SCIPY_WOLFE = True
+except ImportError:
+    try:
+        from scipy.optimize.linesearch import line_search_wolfe2
+        USE_SCIPY_WOLFE = True
+    except ImportError:
+        USE_SCIPY_WOLFE = False
+
 
 class LineSearchTool(object):
     def __init__(self, method='Wolfe', **kwargs):
@@ -42,16 +53,25 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            for _ in range(100):
+            while True:
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-            return 0.0
         
         elif self._method == 'Wolfe':
+            if USE_SCIPY_WOLFE:
+                phi = lambda a: oracle.func_directional(x_k, d_k, a)
+                phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
+                result = line_search_wolfe2(phi, phi_prime, phi(0), phi_prime(0),
+                                            c1=self.c1, c2=self.c2)
+                alpha = result[0]
+                if alpha is not None:
+                    return alpha
+            
+            # Fallback to Armijo
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
@@ -60,33 +80,13 @@ class LineSearchTool(object):
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
             
-            for _ in range(100):
-                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
-                phi_prime_alpha = oracle.grad_directional(x_k, d_k, alpha)
-                
-                armijo_ok = phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0
-                curvature_ok = abs(phi_prime_alpha) <= -self.c2 * phi_prime_0
-                
-                if armijo_ok and curvature_ok:
-                    return alpha
-                
-                if armijo_ok and not curvature_ok and phi_prime_alpha < 0:
-                    alpha = alpha * 2.0
-                else:
-                    alpha = alpha / 2.0
-                
-                if alpha < 1e-16:
-                    return 0.0
-            
-            alpha = self.alpha_0
-            for _ in range(100):
+            while True:
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
                     return alpha
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-            return 0.0
         
         return None
 
