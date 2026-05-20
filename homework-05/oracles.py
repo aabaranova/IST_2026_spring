@@ -154,3 +154,83 @@ def hess_finite_diff(func, x, eps=1e-5):
             hess[i, j] = (f_ij - f_i - f_j + f0) / (eps ** 2)
             hess[j, i] = hess[i, j]
     return hess
+
+# Переопределяем OptimizedOracle с правильным кэшированием
+class LogRegL2OptimizedOracle(LogRegL2Oracle):
+    def __init__(self, matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef):
+        super().__init__(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
+        self._cached_x = None
+        self._cached_Ax = None
+        self._cached_d = None
+        self._cached_Ad = None
+        self._cached_x_alpha = None
+        self._cached_Ax_alpha = None
+
+    def _get_Ax(self, x):
+        if self._cached_x is not None and np.array_equal(self._cached_x, x):
+            return self._cached_Ax
+        self._cached_x = x.copy()
+        self._cached_Ax = self.matvec_Ax(x)
+        return self._cached_Ax
+
+    def _get_Ad(self, d):
+        if self._cached_d is not None and np.array_equal(self._cached_d, d):
+            return self._cached_Ad
+        self._cached_d = d.copy()
+        self._cached_Ad = self.matvec_Ax(d)
+        return self._cached_Ad
+
+    def func(self, x):
+        Ax = self._get_Ax(x)
+        z = self.b * Ax
+        log_loss = np.mean(np.logaddexp(0, -z))
+        reg = 0.5 * self.regcoef * np.dot(x, x)
+        return log_loss + reg
+
+    def grad(self, x):
+        Ax = self._get_Ax(x)
+        z = self.b * Ax
+        sigma = expit(-z)
+        tmp = -self.b * sigma / self.m
+        grad_loss = self.matvec_ATx(tmp)
+        grad_reg = self.regcoef * x
+        return grad_loss + grad_reg
+
+    def hess(self, x):
+        Ax = self._get_Ax(x)
+        z = self.b * Ax
+        sigma_z = expit(z)
+        sigma_neg_z = expit(-z)
+        s = sigma_z * sigma_neg_z / self.m
+        hess_loss = self.matmat_ATsA(s)
+        n = len(x)
+        if scipy.sparse.issparse(hess_loss):
+            hess_loss = hess_loss.toarray()
+        hess_reg = self.regcoef * np.eye(n)
+        return hess_loss + hess_reg
+
+    def func_directional(self, x, d, alpha):
+        Ax = self._get_Ax(x)
+        Ad = self._get_Ad(d)
+        Ax_alpha = Ax + alpha * Ad
+        x_alpha = x + alpha * d
+        self._cached_x_alpha = x_alpha.copy()
+        self._cached_Ax_alpha = Ax_alpha
+        z = self.b * Ax_alpha
+        log_loss = np.mean(np.logaddexp(0, -z))
+        reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
+        return log_loss + reg
+
+    def grad_directional(self, x, d, alpha):
+        Ax = self._get_Ax(x)
+        Ad = self._get_Ad(d)
+        Ax_alpha = Ax + alpha * Ad
+        x_alpha = x + alpha * d
+        self._cached_x_alpha = x_alpha.copy()
+        self._cached_Ax_alpha = Ax_alpha
+        z = self.b * Ax_alpha
+        sigma = expit(-z)
+        tmp = -self.b * sigma / self.m
+        grad_loss_dot_d = np.dot(self.matvec_ATx(tmp), d)
+        grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
+        return grad_loss_dot_d + grad_reg_dot_d
