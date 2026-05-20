@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.linalg import LinAlgError
 import scipy
+from scipy.optimize.linesearch import scalar_search_wolfe2
 from datetime import datetime
 from collections import defaultdict
 
@@ -64,15 +65,23 @@ class LineSearchTool(object):
                 if alpha < 1e-16:
                     return 0.0
         elif self._method == 'Wolfe':
-            # Используем Armijo с адаптивным шагом для простоты
+            try:
+                phi = lambda a: oracle.func_directional(x_k, d_k, a)
+                phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
+                result = scalar_search_wolfe2(phi, phi_prime, phi(0), phi_prime(0), 
+                                             c1=self.c1, c2=self.c2)
+                alpha = result[0]
+                if alpha is not None:
+                    return alpha
+            except:
+                pass
+            # Fallback to Armijo
             if previous_alpha is not None:
-                alpha = previous_alpha * 2.0
+                alpha = previous_alpha
             else:
                 alpha = self.alpha_0
-            
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
-            
             while True:
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
@@ -157,6 +166,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
             print(f"Starting optimization, initial grad_norm = {grad_norm:.6e}")
             print("Starting optimization...")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
@@ -245,6 +255,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         
         if display:
+            print(f"Iteration {iteration}: f={oracle.func(x_k):.6e}, grad_norm={grad_norm:.6e}")
             print(f"Starting optimization, initial grad_norm = {grad_norm:.6e}")
             print("Starting optimization...")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
