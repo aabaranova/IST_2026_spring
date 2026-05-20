@@ -3,6 +3,7 @@ from numpy.linalg import LinAlgError
 import scipy
 from datetime import datetime
 from collections import defaultdict
+from scipy.optimize.linesearch import scalar_search_wolfe2
 
 
 class LineSearchTool(object):
@@ -251,7 +252,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         history['grad_norm'].append(grad_norm)
         if x_k.size <= 2:
             history['x'].append(x_k.copy())
-    return x_k, 'success', history
+    return x_k, 'iterations_exceeded', history
 
 
 def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
