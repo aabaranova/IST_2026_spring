@@ -27,7 +27,7 @@ class BaseSmoothOracle(object):
         reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
         return log_loss + reg
 
-    (self, x, d, alpha):
+    def grad_directional(self, x, d, alpha):
         Ax = self._get_Ax(x)
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
@@ -172,7 +172,7 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
         return log_loss + reg
 
-    (self, x, d, alpha):
+    def grad_directional(self, x, d, alpha):
         Ax = self._get_Ax(x)
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
