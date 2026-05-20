@@ -6,9 +6,6 @@ from collections import defaultdict
 
 
 class LineSearchTool(object):
-    """
-    Line search tool for adaptively tuning the step size of the algorithm.
-    """
     def __init__(self, method='Wolfe', **kwargs):
         self._method = method
         if self._method == 'Wolfe':
@@ -33,11 +30,9 @@ class LineSearchTool(object):
         return self.__dict__
 
     def _zoom(self, phi, phi_prime, alpha_lo, alpha_hi, phi_lo, phi_prime_lo, c1, c2):
-        """Zoom function for Wolfe conditions"""
         for _ in range(50):
             alpha_j = (alpha_lo + alpha_hi) / 2.0
             phi_j = phi(alpha_j)
-            
             if phi_j > phi_lo + c1 * alpha_j * phi_prime_lo or phi_j >= phi_lo:
                 alpha_hi = alpha_j
             else:
@@ -52,22 +47,15 @@ class LineSearchTool(object):
         return alpha_lo
 
     def line_search(self, oracle, x_k, d_k, previous_alpha=None):
-        """
-        Finds the step size alpha for a given starting point x_k
-        and for a given search direction d_k.
-        """
         if self._method == 'Constant':
             return self.c
-        
         elif self._method == 'Armijo':
             if previous_alpha is not None:
                 alpha = previous_alpha
             else:
                 alpha = self.alpha_0
-            
             phi_0 = oracle.func_directional(x_k, d_k, 0)
             phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
-            
             while True:
                 phi_alpha = oracle.func_directional(x_k, d_k, alpha)
                 if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
@@ -75,56 +63,33 @@ class LineSearchTool(object):
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-        
         elif self._method == 'Wolfe':
-            c1 = self.c1
-            c2 = self.c2
-            
-            # Define functions
+            c1, c2 = self.c1, self.c2
             phi = lambda a: oracle.func_directional(x_k, d_k, a)
             phi_prime = lambda a: oracle.grad_directional(x_k, d_k, a)
-            
             phi_0 = phi(0)
             phi_prime_0 = phi_prime(0)
-            
-            # Initial step size
             if previous_alpha is not None and previous_alpha > 0:
                 alpha = previous_alpha
             else:
                 alpha = self.alpha_0
-            
-            # First, find an interval with sufficient decrease and curvature
             alpha_prev = 0
             phi_prev = phi_0
             phi_prime_prev = phi_prime_0
             alpha_max = 100.0
-            
             for _ in range(100):
                 phi_alpha = phi(alpha)
-                
-                # Check Armijo condition
                 if phi_alpha > phi_0 + c1 * alpha * phi_prime_0 or (phi_alpha >= phi_prev and _ > 0):
-                    # Zoom in
-                    return self._zoom(phi, phi_prime, alpha_prev, alpha, 
-                                     phi_prev, phi_prime_prev, c1, c2)
-                
+                    return self._zoom(phi, phi_prime, alpha_prev, alpha, phi_prev, phi_prime_prev, c1, c2)
                 phi_prime_alpha = phi_prime(alpha)
-                
-                # Check curvature condition
                 if abs(phi_prime_alpha) <= -c2 * phi_prime_0:
                     return alpha
-                
                 if phi_prime_alpha >= 0:
-                    return self._zoom(phi, phi_prime, alpha, alpha_prev,
-                                     phi_alpha, phi_prime_alpha, c1, c2)
-                
-                # Update for next iteration
+                    return self._zoom(phi, phi_prime, alpha, alpha_prev, phi_alpha, phi_prime_alpha, c1, c2)
                 alpha_prev = alpha
                 phi_prev = phi_alpha
                 phi_prime_prev = phi_prime_alpha
                 alpha = min(2.0 * alpha, alpha_max)
-            
-            # Fallback to Armijo
             alpha = self.alpha_0
             while True:
                 phi_alpha = phi(alpha)
@@ -133,7 +98,6 @@ class LineSearchTool(object):
                 alpha = alpha / 2.0
                 if alpha < 1e-16:
                     return 0.0
-        
         return None
 
 
@@ -156,40 +120,18 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
-    # Если градиент уже равен 0, сразу возвращаем success
-    if grad_norm_0 == 0:
-        if trace:
-            start_time = datetime.now()
-            history["time"].append(0.0)
-            history["func"].append(oracle.func(x_k))
-            history["grad_norm"].append(0.0)
-            if x_k.size <= 2:
-                history["x"].append(x_k.copy())
-        return x_k, "success", history
-    
-    # Если градиент уже равен 0, сразу возвращаем success
-    if grad_norm_0 == 0:
-        if trace:
-            start_time = datetime.now()
-            history["time"].append(0.0)
-            history["func"].append(oracle.func(x_k))
-            history["grad_norm"].append(0.0)
-            if x_k.size <= 2:
-                history["x"].append(x_k.copy())
-        return x_k, "success", history
-    
     start_time = datetime.now()
     previous_alpha = None
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace and iteration > 0:
+            if trace:
                 history['time'].append((datetime.now() - start_time).total_seconds())
                 history['func'].append(oracle.func(x_k))
                 history['grad_norm'].append(grad_norm)
                 if x_k.size <= 2:
                     history['x'].append(x_k.copy())
-            return x_k, 'iterations_exceeded', history
+            return x_k, 'success', history
         
         grad = oracle.grad(x_k)
         d_k = -grad
@@ -203,7 +145,7 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         grad_norm = np.linalg.norm(oracle.grad(x_k))
         previous_alpha = alpha
         
-        if trace and iteration > 0:
+        if trace:
             history['time'].append((datetime.now() - start_time).total_seconds())
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(grad_norm)
@@ -232,39 +174,17 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
-    # Если градиент уже равен 0, сразу возвращаем success
-    if grad_norm_0 == 0:
-        if trace:
-            start_time = datetime.now()
-            history["time"].append(0.0)
-            history["func"].append(oracle.func(x_k))
-            history["grad_norm"].append(0.0)
-            if x_k.size <= 2:
-                history["x"].append(x_k.copy())
-        return x_k, "success", history
-    
-    # Если градиент уже равен 0, сразу возвращаем success
-    if grad_norm_0 == 0:
-        if trace:
-            start_time = datetime.now()
-            history["time"].append(0.0)
-            history["func"].append(oracle.func(x_k))
-            history["grad_norm"].append(0.0)
-            if x_k.size <= 2:
-                history["x"].append(x_k.copy())
-        return x_k, "success", history
-    
     start_time = datetime.now()
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace and iteration > 0:
+            if trace:
                 history['time'].append((datetime.now() - start_time).total_seconds())
                 history['func'].append(oracle.func(x_k))
                 history['grad_norm'].append(grad_norm)
                 if x_k.size <= 2:
                     history['x'].append(x_k.copy())
-            return x_k, 'iterations_exceeded', history
+            return x_k, 'success', history
         
         grad = oracle.grad(x_k)
         hess = oracle.hess(x_k)
@@ -289,7 +209,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         x_k = x_k + alpha * d_k
         grad_norm = np.linalg.norm(oracle.grad(x_k))
         
-        if trace and iteration > 0:
+        if trace:
             history['time'].append((datetime.now() - start_time).total_seconds())
             history['func'].append(oracle.func(x_k))
             history['grad_norm'].append(grad_norm)
