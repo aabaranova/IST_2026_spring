@@ -121,7 +121,6 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
                 history['x'].append(x_k.copy())
         return x_k, 'success', history
     
-    # Записываем начальную точку в историю
     if trace:
         history['time'].append(0.0)
         history['func'].append(oracle.func(x_k))
@@ -133,15 +132,6 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     previous_alpha = None
     
     for iteration in range(max_iter):
-        if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace:
-                history['time'].append((datetime.now() - start_time).total_seconds())
-                history['func'].append(oracle.func(x_k))
-                history['grad_norm'].append(grad_norm)
-                if x_k.size <= 2:
-                    history['x'].append(x_k.copy())
-            return x_k, 'success', history
-        
         grad = oracle.grad(x_k)
         d_k = -grad
         
@@ -164,8 +154,18 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
         if display:
             if iteration == 0:
                 print("Gradient descent started")
-                print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+                print(f"Initial f(x) = {oracle.func(oracle.grad(x_k)?)}")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+        
+        # Проверка критерия останова ПОСЛЕ обновления
+        if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
+            return x_k, 'success', history
     
     return x_k, 'iterations_exceeded', history
 
@@ -181,7 +181,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     
     if grad_norm_0 == 0:
         if display:
-            print("Gradient descent started")
+            print("Newton method started")
             print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = 0.000000e+00")
             print("Optimization finished - gradient is zero")
         if trace:
@@ -192,7 +192,6 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
                 history['x'].append(x_k.copy())
         return x_k, 'success', history
     
-    # Записываем начальную точку в историю
     if trace:
         history['time'].append(0.0)
         history['func'].append(oracle.func(x_k))
@@ -203,15 +202,6 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     start_time = datetime.now()
     
     for iteration in range(max_iter):
-        if grad_norm**2 <= tolerance * grad_norm_0**2:
-            if trace:
-                history['time'].append((datetime.now() - start_time).total_seconds())
-                history['func'].append(oracle.func(x_k))
-                history['grad_norm'].append(grad_norm)
-                if x_k.size <= 2:
-                    history['x'].append(x_k.copy())
-            return x_k, 'success', history
-        
         grad = oracle.grad(x_k)
         hess = oracle.hess(x_k)
         
@@ -245,7 +235,16 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
         if display:
             if iteration == 0:
                 print("Newton method started")
-                print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
             print(f"Iteration {iteration}: f(x) = {oracle.func(x_k):.6e}, ||grad|| = {grad_norm:.6e}")
+        
+        # Проверка критерия останова ПОСЛЕ обновления
+        if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
+            return x_k, 'success', history
     
     return x_k, 'iterations_exceeded', history
