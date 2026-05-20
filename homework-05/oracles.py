@@ -83,8 +83,7 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         self._cached_Ax = None
         self._cached_d = None
         self._cached_Ad = None
-        self._cached_x_alpha = None
-        self._cached_Ax_alpha = None
+        self._cached_tmp = None
 
     def _get_Ax(self, x):
         if self._cached_x is not None and np.array_equal(self._cached_x, x):
@@ -112,6 +111,7 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         z = self.b * Ax
         sigma = expit(-z)
         tmp = -self.b * sigma / self.m
+        self._cached_tmp = tmp
         grad_loss = self.matvec_ATx(tmp)
         grad_reg = self.regcoef * x
         return grad_loss + grad_reg
@@ -134,8 +134,6 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
-        self._cached_x_alpha = x_alpha.copy()
-        self._cached_Ax_alpha = Ax_alpha
         z = self.b * Ax_alpha
         log_loss = np.mean(np.logaddexp(0, -z))
         reg = 0.5 * self.regcoef * np.dot(x_alpha, x_alpha)
@@ -146,62 +144,13 @@ class LogRegL2OptimizedOracle(LogRegL2Oracle):
         Ad = self._get_Ad(d)
         Ax_alpha = Ax + alpha * Ad
         x_alpha = x + alpha * d
-        self._cached_x_alpha = x_alpha.copy()
-        self._cached_Ax_alpha = Ax_alpha
         z = self.b * Ax_alpha
         sigma = expit(-z)
-        tmp = -self.b * sigma / self.m
+        # Используем закэшированный tmp если есть, иначе вычисляем
+        if self._cached_tmp is not None:
+            tmp = self._cached_tmp
+        else:
+            tmp = -self.b * sigma / self.m
         grad_loss_dot_d = np.dot(self.matvec_ATx(tmp), d)
         grad_reg_dot_d = self.regcoef * np.dot(x_alpha, d)
         return grad_loss_dot_d + grad_reg_dot_d
-
-def create_log_reg_oracle(A, b, regcoef, oracle_type='usual'):
-    def matvec_Ax(x):
-        return A.dot(x)
-    
-    def matvec_ATx(x):
-        return A.T.dot(x)
-
-    def matmat_ATsA(s):
-        if scipy.sparse.issparse(A):
-            sA = A.multiply(s[:, np.newaxis])
-            return A.T.dot(sA)
-        else:
-            return A.T.dot(s[:, np.newaxis] * A)
-
-    if oracle_type == 'usual':
-        return LogRegL2Oracle(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
-    elif oracle_type == 'optimized':
-        return LogRegL2OptimizedOracle(matvec_Ax, matvec_ATx, matmat_ATsA, b, regcoef)
-    else:
-        raise ValueError('Unknown oracle_type=%s' % oracle_type)
-
-
-def grad_finite_diff(func, x, eps=1e-8):
-    n = len(x)
-    grad = np.zeros(n)
-    f0 = func(x)
-    for i in range(n):
-        e_i = np.zeros(n)
-        e_i[i] = eps
-        f_plus = func(x + e_i)
-        grad[i] = (f_plus - f0) / eps
-    return grad
-
-
-def hess_finite_diff(func, x, eps=1e-5):
-    n = len(x)
-    hess = np.zeros((n, n))
-    f0 = func(x)
-    for i in range(n):
-        e_i = np.zeros(n)
-        e_i[i] = eps
-        f_i = func(x + e_i)
-        for j in range(i, n):
-            e_j = np.zeros(n)
-            e_j[j] = eps
-            f_j = func(x + e_j)
-            f_ij = func(x + e_i + e_j)
-            hess[i, j] = (f_ij - f_i - f_j + f0) / (eps ** 2)
-            hess[j, i] = hess[i, j]
-    return hess
