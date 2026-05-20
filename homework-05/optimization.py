@@ -134,6 +134,12 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
             return x_k, 'success', history
         
         grad = oracle.grad(x_k)
@@ -198,6 +204,12 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     
     for iteration in range(max_iter):
         if grad_norm**2 <= tolerance * grad_norm_0**2:
+            if trace:
+                history['time'].append((datetime.now() - start_time).total_seconds())
+                history['func'].append(oracle.func(x_k))
+                history['grad_norm'].append(grad_norm)
+                if x_k.size <= 2:
+                    history['x'].append(x_k.copy())
             return x_k, 'success', history
         
         grad = oracle.grad(x_k)
