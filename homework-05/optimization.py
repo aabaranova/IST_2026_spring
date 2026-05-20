@@ -120,6 +120,28 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
+    # Если градиент уже равен 0, сразу возвращаем success
+    if grad_norm_0 == 0:
+        if trace:
+            start_time = datetime.now()
+            history["time"].append(0.0)
+            history["func"].append(oracle.func(x_k))
+            history["grad_norm"].append(0.0)
+            if x_k.size <= 2:
+                history["x"].append(x_k.copy())
+        return x_k, "success", history
+    
+    # Если градиент уже равен 0, сразу возвращаем success
+    if grad_norm_0 == 0:
+        if trace:
+            start_time = datetime.now()
+            history["time"].append(0.0)
+            history["func"].append(oracle.func(x_k))
+            history["grad_norm"].append(0.0)
+            if x_k.size <= 2:
+                history["x"].append(x_k.copy())
+        return x_k, "success", history
+    
     start_time = datetime.now()
     previous_alpha = None
     
@@ -174,6 +196,28 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     grad_norm = np.linalg.norm(oracle.grad(x_k))
     grad_norm_0 = grad_norm
     
+    # Если градиент уже равен 0, сразу возвращаем success
+    if grad_norm_0 == 0:
+        if trace:
+            start_time = datetime.now()
+            history["time"].append(0.0)
+            history["func"].append(oracle.func(x_k))
+            history["grad_norm"].append(0.0)
+            if x_k.size <= 2:
+                history["x"].append(x_k.copy())
+        return x_k, "success", history
+    
+    # Если градиент уже равен 0, сразу возвращаем success
+    if grad_norm_0 == 0:
+        if trace:
+            start_time = datetime.now()
+            history["time"].append(0.0)
+            history["func"].append(oracle.func(x_k))
+            history["grad_norm"].append(0.0)
+            if x_k.size <= 2:
+                history["x"].append(x_k.copy())
+        return x_k, "success", history
+    
     start_time = datetime.now()
     
     for iteration in range(max_iter):
@@ -196,7 +240,7 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
             except LinAlgError:
                 d_k = np.linalg.solve(hess, -grad)
         except LinAlgError:
-            return x_k, 'newton_direction_error', history
+            return x_k, 'computational_error', history
         
         if np.any(np.isnan(d_k)) or np.any(np.isinf(d_k)):
             return x_k, 'computational_error', history
