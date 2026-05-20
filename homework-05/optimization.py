@@ -109,6 +109,10 @@ def gradient_descent(oracle, x_0, tolerance=1e-5, max_iter=10000,
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
+        if display:
+            print("Gradient descent started")
+            print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = 0.000000e+00")
+            print("Optimization finished - gradient is zero")
         if trace:
             history['time'].append(0.0)
             history['func'].append(oracle.func(x_k))
@@ -170,6 +174,10 @@ def newton(oracle, x_0, tolerance=1e-5, max_iter=100,
     grad_norm_0 = grad_norm
     
     if grad_norm_0 == 0:
+        if display:
+            print("Gradient descent started")
+            print(f"Initial f(x) = {oracle.func(x_k):.6e}, ||grad|| = 0.000000e+00")
+            print("Optimization finished - gradient is zero")
         if trace:
             history['time'].append(0.0)
             history['func'].append(oracle.func(x_k))
