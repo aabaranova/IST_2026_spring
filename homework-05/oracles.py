@@ -45,6 +45,7 @@ class LogRegL2Oracle(BaseSmoothOracle):
         self.b = b
         self.regcoef = regcoef
         self.m = len(b)
+        self.m = len(b)
 
     def func(self, x):
         Ax = self.matvec_Ax(x)
