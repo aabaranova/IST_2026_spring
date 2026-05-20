@@ -13,6 +13,25 @@ class LineSearchTool(object):
             self.c2 = kwargs.get('c2', 0.9)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
         elif self._method == 'Armijo':
+            if previous_alpha is not None:
+                alpha = previous_alpha
+            else:
+                alpha = self.alpha_0
+            
+            phi_0 = oracle.func_directional(x_k, d_k, 0)
+            phi_prime_0 = oracle.grad_directional(x_k, d_k, 0)
+            
+            # Armijo backtracking
+            for _ in range(50):
+                phi_alpha = oracle.func_directional(x_k, d_k, alpha)
+                if phi_alpha <= phi_0 + self.c1 * alpha * phi_prime_0:
+                    return alpha
+                alpha = alpha / 2.0
+                if alpha < 1e-16:
+                    return 0.0
+            return 0.0
+
+        elif self._method == 'Armijo':
             self.c1 = kwargs.get('c1', 1e-4)
             self.alpha_0 = kwargs.get('alpha_0', 1.0)
         elif self._method == 'Constant':
